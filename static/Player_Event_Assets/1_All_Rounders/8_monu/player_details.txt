@@ -1,0 +1,16 @@
+Player Details
+==================================================
+
+ID: 8
+Full Name: monu
+Nickname: monty
+Mobile: 9926452395
+Address: chandora ok it r
+Registration Date: 2025-09-29 13:43:09
+
+Player Roles:
+- All-rounder: Yes
+- Left-arm Bowler: Yes
+- Right-arm Bowler: No
+- Left-hand Batter: No
+- Right-hand Batter: Yes

@@ -1,0 +1,48 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="mb-0">Test SMS Functionality</h2>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('test_sms') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="mb-3">
+                            <label for="phone_number" class="form-label">Phone Number</label>
+                            <input type="text" class="form-control" id="phone_number" name="phone_number" 
+                                   placeholder="Enter mobile number (e.g., 9876543210)" required>
+                            <div class="form-text">
+                                Enter a 10-digit mobile number to test SMS functionality
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Send Test SMS</button>
+                    </form>
+
+                    <div class="mt-4">
+                        <h4>SMS Configuration Status:</h4>
+                        <ul>
+                            <li>Twilio Account SID: {% if config.get('TWILIO_ACCOUNT_SID') %}<span class="text-success">Configured</span>{% else %}<span class="text-danger">Missing</span>{% endif %}</li>
+                            <li>Twilio Auth Token: {% if config.get('TWILIO_AUTH_TOKEN') %}<span class="text-success">Configured</span>{% else %}<span class="text-danger">Missing</span>{% endif %}</li>
+                            <li>Twilio Phone Number: {% if config.get('TWILIO_PHONE_NUMBER') %}<span class="text-success">{{ config.get('TWILIO_PHONE_NUMBER') }}</span>{% else %}<span class="text-danger">Missing</span>{% endif %}</li>
+                        </ul>
+                    </div>
+
+                    <div class="mt-4">
+                        <h4>Troubleshooting Steps:</h4>
+                        <ol>
+                            <li>Check if all Twilio credentials are configured in the .env file</li>
+                            <li>Verify that the Twilio phone number is correctly formatted</li>
+                            <li>Ensure the recipient number is a valid mobile number</li>
+                            <li>Check server logs for detailed error messages</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{
+    "id": 8,
+    "full_name": "monu",
+    "nickname": "monty",
+    "address": "chandora ok it r",
+    "mobile_number": "9926452395",
+    "registration_date": "2025-09-29 13:43:09",
+    "profile_picture": "Screenshot_2025-09-29_191243.png",
+    "roles": {
+        "all_rounder": true,
+        "left_arm_bowler": true,
+        "right_arm_bowler": false,
+        "left_hand_batter": false,
+        "right_hand_batter": true
+    }
+}

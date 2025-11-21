@@ -1,0 +1,607 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h2 class="card-title mb-4">Complete Your Payment</h2>
+                    
+                    <!-- Payment Status Display -->
+    <div id="paymentStatus" class="alert alert-info mb-4">
+        <h4 class="alert-heading mb-2">Amount: ₹{{ amount }}</h4>
+        <p class="mb-0">Registration ID: {{ transaction_id }}</p>
+        <p class="mt-2 mb-0" id="statusMessage">Waiting for payment...</p>
+        <div id="connectionStatus" class="mt-2 small text-muted">Connecting to payment system...</div>
+        <div id="lastUpdate" class="mt-1 small text-muted"></div>
+    </div>                    <div class="qr-code-container mb-4">
+                        <img src="data:image/png;base64,{{ qr_code }}" 
+                             alt="UPI Payment QR Code"
+                             class="img-fluid"
+                             style="max-width: 300px;">
+                    </div>
+
+                    <div class="payment-instructions mb-4">
+                        <h5>How to Pay:</h5>
+                        <ol class="text-start">
+                            <li>Open any UPI-enabled payment app (Google Pay, PhonePe, Paytm, etc.)</li>
+                            <li>Scan the QR code above</li>
+                            <li>Verify the payment details</li>
+                            <li>Take a screenshot of your successful payment</li>
+                            <li>Upload the screenshot using the form below</li>
+                        </ol>
+                    </div>
+
+                    <form id="paymentProofForm" action="{{ url_for('upload_payment_proof', player_id=player_id) }}" method="POST" enctype="multipart/form-data" class="mb-4">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label for="paymentScreenshot" class="form-label">Upload Payment Screenshot</label>
+                            <input type="file" class="form-control" id="paymentScreenshot" name="payment_screenshot" accept="image/*" required>
+                            <div class="form-text">Please upload a clear screenshot showing your successful payment</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Submit Payment Proof</button>
+                    </form>
+
+                    <div class="alert alert-info mb-4">
+                        <small>
+                            <i class="fas fa-info-circle"></i> 
+                            After submitting your payment proof, you will receive an SMS confirmation once your registration is verified.
+                        </small>
+                    </div>
+
+                    <div class="mt-4">
+                        <a href="/" class="btn btn-secondary" onclick="return confirm('Are you sure you want to cancel the payment? Your registration will remain pending.')">
+                            <i class="fas fa-times"></i> Cancel Payment
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Payment status monitoring script with enhanced error handling
+document.addEventListener('DOMContentLoaded', function() {
+    const transactionId = '{{ transaction_id }}';
+    const statusDiv = document.getElementById('paymentStatus');
+    const statusMessage = document.getElementById('statusMessage');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const lastUpdate = document.getElementById('lastUpdate');
+    const transactionDetails = document.getElementById('transactionDetails');
+    
+    // Configuration
+    const config = {
+        debug: true,
+        pollInterval: {
+            min: 5000,    // Start with 5 seconds
+            max: 30000,   // Max 30 seconds
+            current: 5000 // Current interval
+        },
+        reconnect: {
+            maxAttempts: 5,
+            delay: 1000,  // Start with 1 second
+            maxDelay: 10000 // Max 10 seconds
+        },
+        keepalive: {
+            interval: 15000, // 15 seconds
+            lastReceived: Date.now()
+        }
+    };
+    
+    // Configuration
+    const debug = true;
+    let errorCount = 0;
+    const maxErrors = 3;
+    const minPollInterval = 5000; // Start with 5 seconds
+    const maxPollInterval = 30000;  // Max 30 seconds
+    let currentPollInterval = minPollInterval;
+    let pollTimer = null;
+    let eventSource = null;
+    let isConnected = false;
+    let connectionAttempts = 0;
+    const maxConnectionAttempts = 5;
+    let reconnectDelay = 1000; // Start with 1 second delay
+    
+    // Initialize SSE connection with enhanced error recovery
+    function initializeSSE() {
+        let connectionAttempts = 0;
+        let reconnectTimeout = null;
+        let lastEventTime = Date.now();
+        
+        function checkConnection() {
+            const now = Date.now();
+            if (eventSource && now - lastEventTime > config.keepalive.interval * 2) {
+                console.error('Connection timeout - no events received');
+                reconnectSSE('timeout');
+            }
+        }
+        
+        function cleanupExistingConnection() {
+            if (eventSource) {
+                try {
+                    eventSource.close();
+                    eventSource = null;
+                } catch (e) {
+                    console.error('Error closing connection:', e);
+                }
+            }
+            
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+                reconnectTimeout = null;
+            }
+        }
+        
+        function reconnectSSE(reason) {
+            console.log(`Reconnecting SSE (reason: ${reason})`);
+            cleanupExistingConnection();
+            
+            if (connectionAttempts < config.reconnect.maxAttempts) {
+                const delay = Math.min(
+                    config.reconnect.delay * Math.pow(2, connectionAttempts),
+                    config.reconnect.maxDelay
+                );
+                
+                safeUpdateElement(
+                    connectionStatus,
+                    `Reconnecting in ${delay/1000}s (${connectionAttempts + 1}/${config.reconnect.maxAttempts})`,
+                    'alert alert-warning'
+                );
+                
+                reconnectTimeout = setTimeout(() => {
+                    connectionAttempts++;
+                    connectSSE();
+                }, delay);
+            } else {
+                console.log('Max reconnection attempts reached, falling back to polling');
+                safeUpdateElement(
+                    connectionStatus,
+                    'Using polling for updates',
+                    'alert alert-info'
+                );
+                restartPolling();
+            }
+        }
+
+        function resetConnection() {
+            cleanupExistingConnection();
+            isConnected = false;
+            connectionAttempts = 0;
+            reconnectDelay = 1000;
+        }
+
+        function scheduleReconnect() {
+            connectionAttempts++;
+            if (connectionAttempts < maxConnectionAttempts) {
+                // Exponential backoff with max delay of 10 seconds
+                reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+                setTimeout(connect, reconnectDelay);
+                
+                safeUpdateElement(
+                    connectionStatus,
+                    `Reconnecting in ${reconnectDelay/1000} seconds... (Attempt ${connectionAttempts}/${maxConnectionAttempts})`,
+                    'alert alert-warning mt-3'
+                );
+            } else {
+                safeUpdateElement(
+                    connectionStatus,
+                    'Falling back to polling only',
+                    'alert alert-info mt-3'
+                );
+            }
+        }
+
+        function connectSSE() {
+            if (connectionAttempts >= config.reconnect.maxAttempts) {
+                return;
+            }
+
+            // Clean up any existing connection
+            cleanupExistingConnection();
+            
+            // Set up connection monitoring
+            const connectionMonitor = setInterval(checkConnection, config.keepalive.interval);
+            
+            try {
+                const now = Date.now();
+                let url;
+                
+                try {
+                    url = new URL('/stream', window.location.href);
+                    url.searchParams.set('transaction_id', transactionId);
+                    url.searchParams.set('t', now); // Cache buster
+                } catch (urlError) {
+                    console.error('Error constructing URL:', urlError);
+                    throw new Error('Invalid URL configuration');
+                }
+                
+                log('Connecting to EventSource:', url.toString());
+                
+                // Create EventSource with enhanced error handling
+                eventSource = new EventSource(url.toString(), {
+                    withCredentials: false
+                });
+                
+                // Handle successful connection
+                eventSource.onopen = function(event) {
+                    console.log('SSE connection opened');
+                    lastEventTime = Date.now();
+                    connectionAttempts = 0;
+                    config.reconnect.delay = 1000; // Reset backoff
+                    
+                    safeUpdateElement(
+                        connectionStatus,
+                        'Connected to payment system',
+                        'alert alert-success'
+                    );
+                    log('SSE connection opened');
+                    isConnected = true;
+                    connectionAttempts = 0;
+                    reconnectDelay = 1000;
+                    
+                    // Reset error tracking on successful connection
+                    errorCount = 0;
+                    currentPollInterval = minPollInterval;
+                    
+                    safeUpdateElement(
+                        connectionStatus,
+                        'Connected to payment system',
+                        'alert alert-success mt-3'
+                    );
+                };
+                
+                // Handle incoming messages
+                eventSource.onmessage = function(event) {
+                    // Update last event time
+                    lastEventTime = Date.now();
+                    log('SSE message received:', event.data);
+                    
+                    try {
+                        const data = JSON.parse(event.data);
+                        log('Parsed SSE data:', data);
+                        
+                        // Reset error counters on successful message
+                        isConnected = true;
+                        connectionAttempts = 0;
+                        reconnectDelay = 1000;
+                        
+                        // Update status if message is for our transaction
+                        if (data.transaction_id === transactionId) {
+                            updatePaymentStatus(data.status, data.message);
+                            
+                            // Handle completion states
+                            if (data.status === 'success' || data.status === 'failed') {
+                                cleanupExistingConnection();
+                            }
+                        }
+                    } catch (parseError) {
+                        console.error('Error parsing SSE message:', parseError);
+                        log('Raw message data:', event.data);
+                    }
+                };
+                
+                // Enhanced error handling with reconnection logic
+                eventSource.onerror = function(error) {
+                    const state = eventSource ? eventSource.readyState : 'UNKNOWN';
+                    console.error('SSE Error:', error, 'ReadyState:', state);
+                    
+                    // Log detailed error information
+                    log('SSE Error Details:', {
+                        readyState: state,
+                        connectionAttempts: connectionAttempts,
+                        wasConnected: lastEventTime > 0,
+                        timeSinceLastEvent: Date.now() - lastEventTime,
+                        url: eventSource.url
+                    });
+                    
+                    // Log detailed error information
+                    log('SSE Error Details:', {
+                        readyState: state,
+                        connectionAttempts,
+                        wasConnected: isConnected,
+                        url: url.toString()
+                    });
+                    
+                    // Handle different error scenarios
+                    if (state === EventSource.CLOSED) {
+                        // Connection was closed
+                        isConnected = false;
+                        if (connectionAttempts < maxConnectionAttempts) {
+                            scheduleReconnect();
+                            safeUpdateElement(
+                                connectionStatus,
+                                `Connection lost. Reconnecting (${connectionAttempts}/${maxConnectionAttempts})...`,
+                                'alert alert-warning mt-3'
+                            );
+                        } else {
+                            safeUpdateElement(
+                                connectionStatus,
+                                'Using polling for updates',
+                                'alert alert-info mt-3'
+                            );
+                        }
+                    } else if (state === EventSource.CONNECTING) {
+                        // Still trying to connect
+                        if (connectionAttempts >= maxConnectionAttempts) {
+                            cleanupExistingConnection();
+                            safeUpdateElement(
+                                connectionStatus,
+                                'Could not establish real-time connection. Using polling only.',
+                                'alert alert-warning mt-3'
+                            );
+                        }
+                    }
+                    
+                    // Ensure polling is active as backup
+                    restartPolling();
+                };
+                
+                // Handle specific event types
+                eventSource.addEventListener('payment_confirmed', function(e) {
+                    log('Received payment_confirmed event');
+                    try {
+                        const data = JSON.parse(e.data);
+                        updatePaymentStatus('success', data.message);
+                        cleanupExistingConnection();
+                    } catch (error) {
+                        console.error('Error handling payment_confirmed event:', error);
+                    }
+                });
+
+                eventSource.addEventListener('payment_failed', function(e) {
+                    log('Received payment_failed event');
+                    try {
+                        const data = JSON.parse(e.data);
+                        updatePaymentStatus('failed', data.message);
+                        cleanupExistingConnection();
+                    } catch (error) {
+                        console.error('Error handling payment_failed event:', error);
+                    }
+                });
+                
+                eventSource.addEventListener('keepalive', function(e) {
+                    log('Received keepalive event');
+                    try {
+                        const data = JSON.parse(e.data);
+                        log('Keepalive timestamp:', data.timestamp);
+                    } catch (error) {
+                        // Ignore parse errors for keepalive
+                        log('Received keepalive ping');
+                    }
+                });
+                
+                eventSource.addEventListener('error', function(e) {
+                    console.error('EventSource error event:', e);
+                });
+                
+            } catch (error) {
+                console.error('Error initializing SSE:', error);
+                scheduleReconnect();
+            }
+        }
+        
+        // Start the initial connection
+        resetConnection();
+        connect();
+    }
+
+    function log(...args) {
+        if (debug) {
+            console.log(new Date().toISOString(), ...args);
+            if (lastUpdate) {
+                lastUpdate.textContent = 'Last check: ' + new Date().toLocaleTimeString();
+            }
+        }
+    }
+
+    // Safe element updater
+    function safeUpdateElement(element, textContent, className = null) {
+        if (element) {
+            element.textContent = textContent;
+            if (className !== null) {
+                element.className = className;
+            }
+        }
+    }
+
+    // Update the payment status display
+    function updatePaymentStatus(status, message = null) {
+        log('Updating payment status:', status, message);
+        
+        let alertClass = 'alert-info';
+        let statusText = message || 'Checking payment status...';
+        let shouldRedirect = false;
+        let redirectUrl = null;
+
+        switch(status.toLowerCase()) {
+            case 'success':
+                alertClass = 'alert-success';
+                statusText = message || 'Payment successful! Redirecting...';
+                shouldRedirect = true;
+                redirectUrl = `/payment-success/{{ player_id }}`;
+                break;
+            case 'pending':
+                alertClass = 'alert-warning';
+                statusText = message || 'Waiting for payment...';
+                break;
+            case 'failed':
+                alertClass = 'alert-danger';
+                statusText = message || 'Payment failed. Please try again.';
+                shouldRedirect = true;
+                redirectUrl = `/payment-cancel/{{ player_id }}`;
+                break;
+            case 'error':
+                alertClass = 'alert-warning';
+                statusText = message || 'Checking payment status...';
+                break;
+        }
+
+        // Update UI with null checks
+        if (statusDiv) {
+            statusDiv.className = `alert ${alertClass} mb-4`;
+        }
+        if (statusMessage) {
+            statusMessage.textContent = statusText;
+        }
+
+        // Handle redirect if needed
+        if (shouldRedirect && redirectUrl) {
+            cleanup();
+            // Show success message before redirect
+            if (status.toLowerCase() === 'success') {
+                statusDiv.className = 'alert alert-success mb-4';
+                statusMessage.textContent = 'Payment successful! Redirecting...';
+            }
+            setTimeout(() => {
+                window.location.href = redirectUrl;
+            }, 1500);
+        }
+    }
+
+    // Check payment status
+    async function pollPaymentStatus() {
+        try {
+            log('Checking payment status for:', transactionId);
+            const response = await fetch(`/check-payment-status?reference_id=${transactionId}`);
+            
+            // Get response text first
+            let responseText;
+            try {
+                responseText = await response.text();
+                log('Raw response:', responseText);
+            } catch (textError) {
+                console.error('Error reading response:', textError);
+                throw new Error('Could not read server response');
+            }
+            
+            // Try to parse as JSON, handle HTML responses
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Parse error:', parseError);
+                // Got HTML or invalid JSON, use default pending state
+                data = {
+                    status: 'pending',
+                    message: 'Verifying payment status...'
+                };
+            }
+
+            // Reset error count on successful request
+            errorCount = 0;
+            currentPollInterval = 5000;
+
+            // Update status
+            if (data.message) {
+                statusMessage.textContent = data.message;
+            }
+            
+            if (data.status) {
+                updatePaymentStatus(data.status, data.message);
+            }
+
+            // Update transaction details if element exists and we have data
+            if (data.transaction_id && transactionDetails) {
+                transactionDetails.textContent = `Transaction ID: ${data.transaction_id}`;
+            }
+
+            // Update connection status if element exists
+            if (connectionStatus) {
+                connectionStatus.textContent = 'Connected to payment system';
+                connectionStatus.className = 'alert alert-success mt-3';
+            }
+
+        } catch (error) {
+            console.error('Error checking payment status:', error);
+            errorCount++;
+            
+            // Update UI for error state with safe updates
+            safeUpdateElement(statusMessage, 'Checking payment status...');
+            safeUpdateElement(
+                connectionStatus, 
+                `Retrying... (Attempt ${errorCount})`,
+                'alert alert-warning mt-3'
+            );
+            
+            // Increase polling interval on repeated errors
+            if (errorCount >= maxErrors) {
+                currentPollInterval = Math.min(currentPollInterval * 1.5, maxPollInterval);
+                log(`Increased poll interval to ${currentPollInterval}ms`);
+            }
+            
+            // Update polling interval
+            restartPolling();
+        }
+    }
+
+    // Restart polling with current interval
+    function restartPolling() {
+        if (pollTimer) {
+            clearInterval(pollTimer);
+        }
+        pollTimer = setInterval(pollPaymentStatus, currentPollInterval);
+        log(`Polling restarted with interval ${currentPollInterval}ms`);
+    }
+
+    // Cleanup
+    function cleanup() {
+        if (pollTimer) {
+            clearInterval(pollTimer);
+        }
+    }
+
+    // Initialize both SSE and polling
+    initializeSSE();      // Start SSE connection
+    pollPaymentStatus();  // Initial status check
+    restartPolling();     // Start polling as backup
+    
+    // Enhanced cleanup function for the entire module
+    function cleanup(reason = 'unknown') {
+        log(`Cleaning up payment monitoring (reason: ${reason})`);
+        
+        // Close SSE connection
+        if (eventSource) {
+            try {
+                log('Closing SSE connection');
+                eventSource.close();
+            } catch (e) {
+                console.error('Error closing SSE connection:', e);
+            }
+            eventSource = null;
+        }
+        
+        // Clear polling interval
+        if (pollTimer) {
+            log('Stopping polling');
+            clearInterval(pollTimer);
+            pollTimer = null;
+        }
+        
+        // Reset state
+        isConnected = false;
+        connectionAttempts = 0;
+        reconnectDelay = 1000;
+    }
+    
+    // Set up cleanup handlers
+    window.addEventListener('beforeunload', () => cleanup('page_unload'));
+    window.addEventListener('pagehide', () => cleanup('page_hide'));
+    
+    // Handle visibility changes to manage connections
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            cleanup('page_hidden');
+        } else {
+            log('Page visible, reinitializing connections');
+            initializeSSE();
+            pollPaymentStatus();
+            restartPolling();
+        }
+    });
+});
+</script>
+{% endblock %}

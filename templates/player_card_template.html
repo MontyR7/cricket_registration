@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .player-card {
+            width: 800px;
+            height: 400px;
+            background: linear-gradient(to right, #1a237e, #0d47a1);
+            color: white;
+            font-family: Arial, sans-serif;
+            position: relative;
+            display: flex;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        .player-info {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .player-photo {
+            width: 300px;
+            height: 360px;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+        
+        .player-name {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .player-nickname {
+            font-size: 32px;
+            color: #ffd700;
+            margin-bottom: 30px;
+        }
+        
+        .player-role {
+            font-size: 36px;
+            color: #90caf9;
+        }
+    </style>
+</head>
+<body>
+    <div class="player-card">
+        <img src="{{ player_photo }}" class="player-photo" alt="{{ player_name }}">
+        <div class="player-info">
+            <div class="player-name">{{ player_name }}</div>
+            <div class="player-nickname">{{ player_nickname }}</div>
+            <div class="player-role">{{ player_role }}</div>
+        </div>
+    </div>
+</body>
+</html>

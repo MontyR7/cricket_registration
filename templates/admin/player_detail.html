@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin_logout') }}">Logout</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="form-container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="mb-0">Player Details</h3>
+            <div>
+                {% if not player.payment_status %}
+                    <form method="POST" action="{{ url_for('delete_player', player_id=player.id) }}" 
+                          style="display: inline;" 
+                          onsubmit="return confirm('Are you sure you want to delete this registration?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="btn btn-danger me-2">Delete Registration</button>
+                    </form>
+                {% endif %}
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+            </div>
+        </div>
+
+        <div class="row mb-4 align-items-start">
+            <div class="col-md-4">
+                <h5>Profile Picture</h5>
+                {% if player.profile_picture %}
+                <div class="text-center">
+                    <img src="{{ url_for('uploaded_file', filename=player.profile_picture) }}" 
+                         alt="Profile Picture" 
+                         class="img-fluid rounded shadow" 
+                         style="max-width: 100%; width: 350px; height: auto; border: 3px solid #dee2e6;"
+                         onerror="this.src='/static/images/default-profile.png'; this.alt='Profile picture not found'">
+                </div>
+                {% else %}
+                <div class="text-center">
+                    <div class="alert alert-info">No profile picture uploaded</div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6"><strong>Full Name:</strong></div>
+                            <div class="col-md-6">{{ player.full_name }}</div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6"><strong>Nickname:</strong></div>
+                            <div class="col-md-6">{{ player.nickname or 'N/A' }}</div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6"><strong>Mobile Number:</strong></div>
+                            <div class="col-md-6">{{ player.mobile_number }}</div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6"><strong>Address:</strong></div>
+                            <div class="col-md-6">{{ player.address }}</div>
+                        </div>
+
+                        {% if player.payment_screenshot %}
+                        <div class="row mb-3">
+                            <div class="col-md-6"><strong>Payment Proof:</strong></div>
+                            <div class="col-md-6">
+                                <a href="#" onclick="openImageModal('{{ url_for('uploaded_file', filename=player.payment_screenshot) }}')" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-image"></i> View Payment Screenshot
+                                </a>
+                                {% if not player.admin_approved %}
+                                <form method="POST" action="{{ url_for('verify_payment', player_id=player.id) }}" class="d-inline ms-2">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" name="action" value="approve" class="btn btn-success btn-sm">
+                                        <i class="fas fa-check me-1"></i> Approve Payment
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="row mb-3">
+                            <div class="col-md-6"><strong>Player Roles:</strong></div>
+                            <div class="col-md-6">
+                                <div class="player-roles">
+                                    {% if player.is_all_rounder %}
+                                        <span class="badge bg-primary me-2 mb-2">All-rounder</span>
+                                    {% endif %}
+                                    {% if player.is_left_arm_bowler %}
+                                        <span class="badge bg-success me-2 mb-2">Left-arm Bowler</span>
+                                    {% endif %}
+                                    {% if player.is_right_arm_bowler %}
+                                        <span class="badge bg-success me-2 mb-2">Right-arm Bowler</span>
+                                    {% endif %}
+                                    {% if player.is_left_hand_batter %}
+                                        <span class="badge bg-info me-2 mb-2">Left-hand Batter</span>
+                                    {% endif %}
+                                    {% if player.is_right_hand_batter %}
+                                        <span class="badge bg-info me-2 mb-2">Right-hand Batter</span>
+                                    {% endif %}
+                                    {% if not (player.is_all_rounder or player.is_left_arm_bowler or player.is_right_arm_bowler or player.is_left_hand_batter or player.is_right_hand_batter) %}
+                                        <span class="badge bg-secondary">No roles selected</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4"><strong>Full Name:</strong></div>
+                    <div class="col-md-8">{{ player.full_name }}</div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-4"><strong>Nickname:</strong></div>
+                    <div class="col-md-8">{{ player.nickname or 'N/A' }}</div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-4"><strong>Mobile Number:</strong></div>
+                    <div class="col-md-8">{{ player.mobile_number }}</div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-4"><strong>Address:</strong></div>
+                    <div class="col-md-8">{{ player.address }}</div>
+                </div>
+
+                {% if player.payment_screenshot %}
+                <div class="row mb-3">
+                    <div class="col-md-4"><strong>Payment Proof:</strong></div>
+                    <div class="col-md-8">
+                        <a href="#" onclick="openImageModal('{{ url_for('uploaded_file', filename=player.payment_screenshot) }}')" class="btn btn-primary btn-sm">
+                            <i class="fas fa-image"></i> View Payment Screenshot
+                        </a>
+                        {% if not player.admin_approved %}
+                        <form method="POST" action="{{ url_for('verify_payment', player_id=player.id) }}" class="d-inline ms-2">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" name="action" value="approve" class="btn btn-success btn-sm">
+                                <i class="fas fa-check me-1"></i> Approve Payment
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="row mb-3">
+                    <div class="col-md-4"><strong>Player Roles:</strong></div>
+                    <div class="col-md-8">
+                        <div class="player-roles">
+                            {% if player.is_all_rounder %}
+                                <span class="badge bg-primary me-2 mb-2">All-rounder</span>
+                            {% endif %}
+                            {% if player.is_left_arm_bowler %}
+                                <span class="badge bg-success me-2 mb-2">Left-arm Bowler</span>
+                            {% endif %}
+                            {% if player.is_right_arm_bowler %}
+                                <span class="badge bg-success me-2 mb-2">Right-arm Bowler</span>
+                            {% endif %}
+                            {% if player.is_left_hand_batter %}
+                                <span class="badge bg-info me-2 mb-2">Left-hand Batter</span>
+                            {% endif %}
+                            {% if player.is_right_hand_batter %}
+                                <span class="badge bg-info me-2 mb-2">Right-hand Batter</span>
+                            {% endif %}
+                            {% if not (player.is_all_rounder or player.is_left_arm_bowler or player.is_right_arm_bowler or player.is_left_hand_batter or player.is_right_hand_batter) %}
+                                <span class="badge bg-secondary">No roles selected</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Payment Screenshot</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalImage" src="" alt="Payment Screenshot" style="max-width: 100%; cursor: zoom-in;" onclick="toggleImageZoom(this)">
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openImageModal(imageUrl) {
+    const modalImage = document.getElementById('modalImage');
+    modalImage.src = imageUrl;
+    const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+    modal.show();
+    return false;
+}
+
+function toggleImageZoom(img) {
+    if (img.style.maxWidth === '100%') {
+        img.style.maxWidth = '200%';
+        img.style.cursor = 'zoom-out';
+    } else {
+        img.style.maxWidth = '100%';
+        img.style.cursor = 'zoom-in';
+    }
+}
+</script>
+{% endblock %}

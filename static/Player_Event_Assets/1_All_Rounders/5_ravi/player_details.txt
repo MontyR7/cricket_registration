@@ -1,0 +1,16 @@
+Player Details
+==================================================
+
+ID: 5
+Full Name: ravi
+Nickname: mark
+Mobile: 7000154205
+Address: chandora ok it r
+Registration Date: 2025-09-28 05:06:03
+
+Player Roles:
+- All-rounder: Yes
+- Left-arm Bowler: Yes
+- Right-arm Bowler: No
+- Left-hand Batter: No
+- Right-hand Batter: Yes

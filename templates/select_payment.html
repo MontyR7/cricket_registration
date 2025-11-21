@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <h2 class="text-center mb-4">Select Payment Method</h2>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Registration Details</h5>
+                <p class="card-text">Name: {{ player.full_name }}</p>
+                <p class="card-text">Amount to Pay: ₹1,000</p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Pay with Card</h5>
+                        <p class="card-text">Pay securely using credit or debit card</p>
+                        <a href="{{ url_for('initiate_payment', player_id=player.id, payment_method='card') }}" 
+                           class="btn btn-primary">Pay with Card</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Pay with UPI</h5>
+                        <p class="card-text">Pay using any UPI app (Google Pay, PhonePe, Paytm, etc.)</p>
+                        <a href="{{ url_for('initiate_payment', player_id=player.id, payment_method='upi') }}" 
+                           class="btn btn-primary">Pay with UPI</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

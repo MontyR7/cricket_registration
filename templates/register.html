@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <h2 class="text-center mb-4">Raghuwanshi Premier League season - 4</h2>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Initial Verification Form -->
+        <div id="verificationStep">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Player Verification</h5>
+                    <div class="mb-3">
+                        <label for="verify_full_name" class="form-label required-field">Full Name</label>
+                        <input type="text" class="form-control" id="verify_full_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="verify_mobile" class="form-label required-field">Mobile Number</label>
+                        <input type="tel" class="form-control" id="verify_mobile" required pattern="[0-9]{10}" placeholder="Enter 10-digit mobile number">
+                    </div>
+                    <button type="button" class="btn btn-primary w-100" onclick="verifyPlayer()">Continue</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Full Registration Form -->
+        <form method="POST" enctype="multipart/form-data" id="registrationForm" style="display: none;" class="mt-4">
+            {{ form.csrf_token }}
+            
+            <div class="mb-3">
+                <label for="full_name" class="form-label required-field">Full Name</label>
+                {{ form.full_name(class="form-control", id="full_name", readonly=true) }}
+                {% if form.full_name.errors %}
+                    {% for error in form.full_name.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            
+            <div class="mb-3">
+                <label for="nickname" class="form-label">Nickname</label>
+                {{ form.nickname(class="form-control") }}
+                {% if form.nickname.errors %}
+                    {% for error in form.nickname.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            
+            <div class="mb-3">
+                <label for="address" class="form-label required-field">Address</label>
+                {{ form.address(class="form-control", rows=3) }}
+                {% if form.address.errors %}
+                    {% for error in form.address.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            
+            <div class="mb-3">
+                <label for="mobile_number" class="form-label required-field">Mobile Number</label>
+                {{ form.mobile_number(class="form-control", id="mobile_number", placeholder="Enter 10-digit mobile number", readonly=true) }}
+                {% if form.mobile_number.errors %}
+                    {% for error in form.mobile_number.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            
+            
+            <div class="mb-3">
+                <label for="profile_picture" class="form-label">Profile Picture</label>
+                {{ form.profile_picture(class="form-control") }}
+                {% if form.profile_picture.errors %}
+                    {% for error in form.profile_picture.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                {% endif %}
+                <div class="form-text">Upload a JPEG or PNG image (max 16MB)</div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="form-label">Player Role</label>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    {{ form.is_all_rounder(class="form-check-input me-2") }}
+                                    {{ form.is_all_rounder.label(class="form-check-label") }}
+                                </div>
+                                <div class="mb-2">
+                                    {{ form.is_left_arm_bowler(class="form-check-input me-2") }}
+                                    {{ form.is_left_arm_bowler.label(class="form-check-label") }}
+                                </div>
+                                <div class="mb-2">
+                                    {{ form.is_right_arm_bowler(class="form-check-input me-2") }}
+                                    {{ form.is_right_arm_bowler.label(class="form-check-label") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    {{ form.is_left_hand_batter(class="form-check-input me-2") }}
+                                    {{ form.is_left_hand_batter.label(class="form-check-label") }}
+                                </div>
+                                <div class="mb-2">
+                                    {{ form.is_right_hand_batter(class="form-check-input me-2") }}
+                                    {{ form.is_right_hand_batter.label(class="form-check-label") }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <div class="alert alert-info">
+                    <h5>Registration Fee: ₹{{ registration_fee }}</h5>
+                    <p class="mb-0">You will be redirected to the payment gateway after submitting the form.</p>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary w-100">Register & Proceed to Payment</button>
+        </form>
+    </div>
+</div>
+
+<!-- Registration Status Modal -->
+<div class="modal fade" id="registrationStatusModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Registration Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="handleModalClose()"></button>
+            </div>
+            <div class="modal-body" id="registrationStatusMessage">
+            </div>
+            <div class="modal-footer" id="registrationModalFooter">
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function verifyPlayer() {
+    console.log('Verification started');
+    const fullName = document.getElementById('verify_full_name').value;
+    const mobileNumber = document.getElementById('verify_mobile').value;
+
+    if (!fullName || !mobileNumber) {
+        alert('Please enter both name and mobile number to continue.');
+        return;
+    }
+
+    if (mobileNumber.length !== 10 || !/^\d+$/.test(mobileNumber)) {
+        alert('Please enter a valid 10-digit mobile number.');
+        return;
+    }
+
+    console.log('Making API request with:', { fullName, mobileNumber });
+    fetch('/check-registration-status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            full_name: fullName,
+            mobile_number: mobileNumber
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Received response:', data);
+        const modal = new bootstrap.Modal(document.getElementById('registrationStatusModal'));
+        const messageDiv = document.getElementById('registrationStatusMessage');
+        const footerDiv = document.getElementById('registrationModalFooter');
+
+        messageDiv.innerHTML = data.message;
+        footerDiv.innerHTML = '';
+
+        if (data.status === 'not_found') {
+            console.log('New player detected');
+            showRegistrationForm(fullName, mobileNumber);
+            return; // Skip showing the modal for new players
+        } else if (data.status === 'pending_payment') {
+            footerDiv.innerHTML = `
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="handleModalClose()">No, Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="proceedToPayment(${data.player_id})">
+                    Yes, Complete Payment
+                </button>
+            `;
+        } else if (data.status === 'completed') {
+            footerDiv.innerHTML = `
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="handleModalClose()">
+                    Close
+                </button>
+            `;
+        } else if (data.status === 'blocked') {
+            footerDiv.innerHTML = `
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="handleModalClose()">
+                    Try Another Mobile Number
+                </button>
+            `;
+        }
+
+        modal.show();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while verifying registration status.');
+    });
+}
+
+function showRegistrationForm(fullName, mobileNumber) {
+    console.log('Showing registration form for:', fullName, mobileNumber);
+    try {
+        // First close the modal
+        const modalElement = document.getElementById('registrationStatusModal');
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) {
+            modal.hide();
+        }
+
+        // Wait for modal to close before showing the form
+        setTimeout(() => {
+            // Hide verification step
+            const verificationStep = document.getElementById('verificationStep');
+            if (verificationStep) {
+                verificationStep.style.display = 'none';
+            }
+
+            // Show registration form
+            const registrationForm = document.getElementById('registrationForm');
+            if (registrationForm) {
+                registrationForm.style.display = 'block';
+            }
+
+            // Pre-fill the verified details
+            const fullNameInput = document.getElementById('full_name');
+            const mobileInput = document.getElementById('mobile_number');
+
+            if (fullNameInput && mobileInput) {
+                fullNameInput.value = fullName;
+                mobileInput.value = mobileNumber;
+            }
+
+            // Scroll to the form
+            registrationForm.scrollIntoView({ behavior: 'smooth' });
+        }, 500); // Wait for modal animation to complete
+    } catch (error) {
+        console.error('Error in showRegistrationForm:', error);
+        alert('There was an error showing the registration form. Please refresh the page and try again.');
+    }
+}
+
+function proceedToPayment(playerId) {
+    window.location.href = `/payment/${playerId}`;
+}
+
+function handleModalClose() {
+    // Clear the verification form
+    document.getElementById('verify_full_name').value = '';
+    document.getElementById('verify_mobile').value = '';
+}
+
+// Form is loaded and fields are readonly by default
+document.addEventListener('DOMContentLoaded', function() {
+    const fullNameInput = document.getElementById('full_name');
+    const mobileInput = document.getElementById('mobile_number');
+    
+    if (fullNameInput && mobileInput) {
+        console.log('Registration form loaded with readonly fields');
+    }
+});
+</script>
+{% endblock %}

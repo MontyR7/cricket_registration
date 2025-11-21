@@ -1,0 +1,12 @@
+2025-09-30 21:36:38,400 - card_generator - INFO - Starting card generation for player: John Doe
+2025-09-30 21:36:38,402 - card_generator - WARNING - No photo provided or not found, using fallback
+2025-09-30 21:36:38,415 - card_generator - INFO - Successfully added text to card
+2025-09-30 21:36:38,470 - card_generator - INFO - Card successfully saved to: C:\Users\Ravi\Desktop\cricket_registration\test_output\test_basic.png
+2025-09-30 21:36:38,470 - card_generator - INFO - Starting card generation for player: Jane Smith
+2025-09-30 21:36:38,470 - card_generator - WARNING - No photo provided or not found, using fallback
+2025-09-30 21:36:38,486 - card_generator - INFO - Successfully added text to card
+2025-09-30 21:36:38,521 - card_generator - INFO - Card successfully saved to: C:\Users\Ravi\Desktop\cricket_registration\test_output\test_no_nickname.png
+2025-09-30 21:36:38,526 - card_generator - INFO - Starting card generation for player: Mike Johnson
+2025-09-30 21:36:38,530 - card_generator - WARNING - No photo provided or not found, using fallback
+2025-09-30 21:36:38,537 - card_generator - INFO - Successfully added text to card
+2025-09-30 21:36:38,579 - card_generator - INFO - Card successfully saved to: C:\Users\Ravi\Desktop\cricket_registration\test_output\test_long_role.png

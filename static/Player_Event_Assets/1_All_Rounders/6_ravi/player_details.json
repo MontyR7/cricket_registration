@@ -1,0 +1,16 @@
+{
+    "id": 6,
+    "full_name": "ravi",
+    "nickname": "mark",
+    "address": "chandora ok it r",
+    "mobile_number": "7598433620",
+    "registration_date": "2025-09-28 05:31:32",
+    "profile_picture": "Screenshot_2025-09-27_220318.png",
+    "roles": {
+        "all_rounder": true,
+        "left_arm_bowler": true,
+        "right_arm_bowler": false,
+        "left_hand_batter": false,
+        "right_hand_batter": false
+    }
+}

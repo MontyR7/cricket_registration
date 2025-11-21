@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <h2 class="text-center mb-4">UPI Payment</h2>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Payment Details</h5>
+                <p class="card-text">Player Name: {{ player.full_name }}</p>
+                <p class="card-text">Amount to Pay: ₹{{ amount }}</p>
+                <hr>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Pay using UPI ID:</h5>
+                        <div class="alert alert-info">
+                            <strong>{{ upi_id }}</strong>
+                        </div>
+                        <small class="text-muted">Use this UPI ID in your preferred payment app (Google Pay, PhonePe, Paytm, etc.)</small>
+                    </div>
+                    <div class="col-md-6 text-center">
+                        <h5>Or Scan QR Code:</h5>
+                        <img src="https://chart.googleapis.com/chart?cht=qr&chs=200x200&chl=upi://pay?pa={{ upi_id }}&pn=Cricket Tournament Registration&am={{ amount }}&cu=INR" 
+                             alt="UPI QR Code" class="img-fluid mb-2">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Confirm Your Payment</h5>
+                <form method="POST" action="{{ url_for('verify_upi_payment', player_id=player.id) }}">
+                    <div class="mb-3">
+                        <label for="utr_number" class="form-label">Enter UPI Transaction Reference Number (UTR)</label>
+                        <input type="text" class="form-control" id="utr_number" name="utr_number" required 
+                               placeholder="Enter the UTR number from your payment receipt">
+                        <div class="form-text">
+                            <ul>
+                                <li>Make the payment using any UPI app</li>
+                                <li>Copy the UTR/Reference number from your payment confirmation</li>
+                                <li>Paste the number here and click Verify Payment</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Verify Payment</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

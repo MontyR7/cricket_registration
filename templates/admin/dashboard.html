@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="{{ url_for('admin_dashboard') }}">Admin Dashboard</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('admin_logout') }}">Logout</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="card-title mb-0">Registered Players</h3>
+            <div>
+                <a href="{{ url_for('download_players_pdf') }}" class="btn btn-success">
+                    <i class="fas fa-download"></i> Download List (PDF)
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="players-table" class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>S.No</th>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Mobile</th>
+                            <th>Role Category</th>
+                            <th>Screenshot</th>
+                            <th>Admin Approval</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for player in players %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ player.id }}</td>
+                            <td>{{ player.full_name }}</td>
+                            <td>{{ player.mobile_number }}</td>
+                            <td>
+                                {% if player.is_all_rounder %}
+                                    <span class="badge bg-primary">All-Rounder</span>
+                                {% elif player.is_left_hand_batter or player.is_right_hand_batter %}
+                                    <span class="badge bg-info">Batter</span>
+                                {% elif player.is_left_arm_bowler or player.is_right_arm_bowler %}
+                                    <span class="badge bg-success">Bowler</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if player.payment_screenshot %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check"></i> Uploaded
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-clock"></i> Pending
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if player.admin_approved %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check"></i> Approved
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-clock"></i> Pending
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('player_detail', player_id=player.id) }}" 
+                                       class="btn btn-sm btn-info">View Details</a>
+                                    <form method="POST" action="{{ url_for('delete_player', player_id=player.id) }}" 
+                                          style="display: inline;" 
+                                          onsubmit="return confirm('Are you sure you want to delete this registration? This action cannot be undone.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#players-table').DataTable({
+            order: [[1, 'desc']], // Order by ID column
+            pageLength: 10,  // Show 10 entries per page
+            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]], // Add option to show all entries
+            searching: true,  // Enable search
+            info: true,      // Show table information
+            stateSave: true, // Save the state of the table
+            stateDuration: 0, // Keep the state indefinitely (until browser cache is cleared)
+            stateLoadParams: function (settings, data) {
+                // Keep search, pagination, and sorting state
+                return true;
+            }
+        });
+    });
+</script>
+{% endblock %}

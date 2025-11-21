@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container text-center">
+        <div class="display-1 text-success mb-4">✓</div>
+        <h2 class="mb-4">Registration Successful!</h2>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Registration Details</h5>
+                <p class="card-text">Name: {{ player.full_name }}</p>
+                <p class="card-text">Mobile: {{ player.mobile_number }}</p>
+                <p class="card-text">Registration Date: {{ player.registration_date.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                <p class="card-text">
+                    <span class="badge bg-success">Payment Successful</span>
+                </p>
+            </div>
+        </div>
+        
+        <p class="text-muted">You will receive a confirmation SMS shortly.</p>
+        <a href="{{ url_for('register') }}" class="btn btn-primary">Back to Registration</a>
+    </div>
+</div>
+{% endblock %}
