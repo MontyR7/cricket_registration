@@ -22,6 +22,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.pyo
 
 # IDE
 .vscode/
@@ -29,10 +30,12 @@ wheels/
 *.swp
 *.swo
 *~
+.DS_Store
 
 # OS
-.DS_Store
 Thumbs.db
+.DS_Store
+*.log
 
 # Flask
 instance/
@@ -51,6 +54,7 @@ test_output/
 # Environment variables
 .env
 .env.local
+.env.*.local
 
 # IDE specific files
 *.code-workspace
@@ -58,3 +62,35 @@ test_output/
 # Virtual environment
 venv/
 .venv
+env/
+
+# Generated files
+*.pyc
+*.pyo
+*.pyd
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Credentials and sensitive data
+*.key
+*.pem
+secrets.json
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node modules (if using any frontend tools)
+node_modules/
+
+# Distribution
+build/
+dist/
+
+# Backup files
+*.bak
+*.swp

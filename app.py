@@ -12,59 +12,48 @@ from datetime import datetime
 from dotenv import load_dotenv
 import stripe
 from twilio.rest import Client
+import logging
 
 # Load environment variables
 load_dotenv()
 
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Create Flask app
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
 
-# MySQL Database Configuration
-DB_USER = os.getenv('DB_USER', 'root')
-DB_PASSWORD = os.getenv('DB_PASSWORD', '')
-DB_HOST = os.getenv('DB_HOST', 'localhost')
-DB_NAME = os.getenv('DB_NAME', 'cricket_tournament')
-
-# Redis Configuration for SSE (make it optional)
-use_redis = os.getenv('USE_REDIS', 'false').lower() == 'true'
-
-# Always set a Redis URL even if we're not using Redis
-app.config["REDIS_URL"] = os.getenv("REDIS_URL", "redis://localhost:6379")
-app.config['SSE_REDIS_URL'] = app.config["REDIS_URL"]
-
-if use_redis:
-    try:
-        redis_client = redis.from_url(app.config["REDIS_URL"])
-        redis_client.ping()  # Test connection
-        print('Redis connected successfully')
-    except Exception as e:
-        print(f'Warning: Redis connection failed: {str(e)}')
-        print('Falling back to in-memory storage for SSE')
-        use_redis = False
-else:
-    print('Redis disabled, using in-memory storage for SSE')
-    redis_client = None
-
-# Register SSE blueprint
-app.register_blueprint(sse, url_prefix='/stream')
-app.config['SSE_REDIS_URL'] = app.config['REDIS_URL']  # Ensure SSE uses same Redis URL
-
-# Configure MySQL Database URI
-app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}'
-app.config['SQLALCHEMY_POOL_SIZE'] = 10  # Connection pool size
-app.config['SQLALCHEMY_MAX_OVERFLOW'] = 20  # Max number of connections to create beyond pool size
-app.config['SQLALCHEMY_POOL_TIMEOUT'] = 30  # Timeout in seconds for getting a connection from pool
-
-app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+# Load configuration based on environment
+from config import get_config
+app.config.from_object(get_config())
 
 # Set static folder path
 app.static_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 
+# Redis Configuration for SSE (make it optional)
+use_redis = app.config.get('USE_REDIS', False)
+
+# Initialize Redis if enabled
+redis_client = None
+if use_redis:
+    try:
+        redis_client = redis.from_url(app.config.get("REDIS_URL", "redis://localhost:6379"))
+        redis_client.ping()  # Test connection
+        logger.info('Redis connected successfully')
+    except Exception as e:
+        logger.warning(f'Redis connection failed: {str(e)}. Falling back to in-memory storage for SSE')
+        use_redis = False
+else:
+    logger.info('Redis disabled, using in-memory storage for SSE')
+
+# Register SSE blueprint
+app.register_blueprint(sse, url_prefix='/stream')
+
 # Setup required directories
 from directory_setup import setup_directories
 if not setup_directories(app):
-    print("Error setting up directories. Please check logs.")
+    logger.error("Error setting up directories. Please check logs.")
     exit(1)
 
 # Initialize extensions
@@ -84,20 +73,13 @@ try:
     twilio_phone_number = os.getenv('TWILIO_PHONE_NUMBER')
     
     if not all([twilio_account_sid, twilio_auth_token, twilio_phone_number]):
-        print('WARNING: Twilio credentials not fully configured. SMS functionality will be disabled.')
-        print('Missing credentials:')
-        if not twilio_account_sid:
-            print('- TWILIO_ACCOUNT_SID')
-        if not twilio_auth_token:
-            print('- TWILIO_AUTH_TOKEN')
-        if not twilio_phone_number:
-            print('- TWILIO_PHONE_NUMBER')
+        logger.warning('Twilio credentials not fully configured. SMS functionality will be disabled.')
         twilio_client = None
     else:
         twilio_client = Client(twilio_account_sid, twilio_auth_token)
-        print('Twilio configured successfully')
+        logger.info('Twilio configured successfully')
 except Exception as e:
-    print(f'Error initializing Twilio: {str(e)}')
+    logger.error(f'Error initializing Twilio: {str(e)}')
     twilio_client = None
 
 # Import models after db initialization
@@ -113,8 +95,16 @@ from routes import *
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    # Only use debug mode when running directly
-    if os.environ.get('FLASK_ENV') == 'development':
-        app.run(debug=True)
+    
+    # Get environment
+    env = os.getenv('FLASK_ENV', 'development').lower()
+    
+    if env == 'production':
+        logger.info('Running in PRODUCTION mode')
+        logger.warning('Debug mode is OFF. Never run production with debug=True!')
+        # In production, use a production WSGI server (Gunicorn, Waitress, etc.)
+        # Do NOT use the development server
+        app.run(debug=False, host='0.0.0.0', port=5000)
     else:
-        app.run(debug=False)
+        logger.info('Running in DEVELOPMENT mode')
+        app.run(debug=True, host='127.0.0.1', port=5000)
